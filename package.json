@@ -1,6 +1,6 @@
 {
   "name": "trove",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Offline semantic search for your local files",
   "main": "./out/main/index.js",
   "author": "Dinson Davis",
