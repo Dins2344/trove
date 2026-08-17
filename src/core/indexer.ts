@@ -1,5 +1,5 @@
-import { sep } from 'node:path'
 import { chunkText, type ChunkOptions } from './chunker'
+import { withTrailingSeparator } from './path-utils'
 import type { Database } from './db/database'
 import {
   deleteFileByPath,
@@ -156,7 +156,7 @@ export async function indexFolder(
     progress.phase = 'pruning'
     emit(true)
 
-    const prefix = root.endsWith(sep) ? root : `${root}${sep}`
+    const prefix = withTrailingSeparator(root)
     for (const knownPath of known.keys()) {
       if (seen.has(knownPath)) continue
       // Only prune inside the folder that was just scanned; other roots were

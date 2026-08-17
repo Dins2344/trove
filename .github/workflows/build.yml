@@ -43,10 +43,10 @@ jobs:
       - run: npm ci
 
       - name: Build installers
-        run: npm run dist
-        env:
-          # Lets electron-builder attach artifacts when the ref is a tag.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # `--publish never` on purpose: publishing is the release job's business.
+        # Left to its default, electron-builder tries to publish on a tag and
+        # fails against the placeholder owner in electron-builder.yml.
+        run: npm run build && npx electron-builder --win --publish never
 
       - name: Upload installers
         uses: actions/upload-artifact@v4

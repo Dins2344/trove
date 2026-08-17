@@ -1,5 +1,5 @@
-import { sep } from 'node:path'
 import type { Chunk } from '../chunker'
+import { withTrailingSeparator } from '../path-utils'
 import type { IndexedFileState } from '../hash'
 import { EXTRACTOR_VERSION } from '../extract/version'
 import { embeddingToBlob } from '../vectors'
@@ -255,10 +255,13 @@ export function deleteFileByPath(db: Database, path: string): void {
  * character is a backslash -- which appears in literally every Windows path.
  * A prefix comparison sidesteps the whole problem.
  *
+ * The trailing separator comes from the path rather than `node:path.sep`; see
+ * `withTrailingSeparator`.
+ *
  * @returns how many files were removed.
  */
 export function deleteFilesUnder(db: Database, folder: string): number {
-  const prefix = folder.endsWith(sep) ? folder : `${folder}${sep}`
+  const prefix = withTrailingSeparator(folder)
 
   const result = db
     .prepare('DELETE FROM files WHERE path = ? OR substr(path, 1, ?) = ?')

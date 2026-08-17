@@ -232,6 +232,17 @@ describe('deleteFilesUnder', () => {
     seedAt('C:\\notes\\a.md')
     expect(deleteFilesUnder(db, 'C:\\notes\\')).toBe(1)
   })
+
+  it('handles POSIX paths on any host', () => {
+    // Runs identically on Windows and on the Linux CI runner: the separator is
+    // read from the path, not from node:path.sep.
+    seedAt('/home/dinso/notes/a.md')
+    seedAt('/home/dinso/notes/deep/b.md')
+    seedAt('/home/dinso/notes-archive/c.md')
+
+    expect(deleteFilesUnder(db, '/home/dinso/notes')).toBe(2)
+    expect([...loadIndexedState(db).keys()]).toEqual(['/home/dinso/notes-archive/c.md'])
+  })
 })
 
 describe('chunks and the FTS index', () => {
