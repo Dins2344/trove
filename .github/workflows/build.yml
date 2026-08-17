@@ -6,11 +6,13 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+  # Lets you run a build from the Actions tab without pushing anything.
+  workflow_dispatch:
 
 jobs:
   # Fast feedback: types and unit tests run on Linux regardless of what we ship.
   # Nothing here needs a compiler -- storage is node:sqlite and the ONNX runtime
-  # ships prebuilt, so this is a plain `npm ci`.
+  # ships prebuilt -- so this is a plain `npm ci`.
   check:
     runs-on: ubuntu-latest
     steps:
@@ -29,9 +31,16 @@ jobs:
       - name: Unit tests
         run: npm test
 
+  # Build and release in one job on purpose. Handing artifacts to a separate
+  # release job means matching upload-artifact and download-artifact major
+  # versions, which is an avoidable failure mode when the files are already
+  # sitting on this runner.
   build:
     needs: check
     runs-on: windows-latest
+    permissions:
+      # Required by the release step below.
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
@@ -43,13 +52,13 @@ jobs:
       - run: npm ci
 
       - name: Build installers
-        # `--publish never` on purpose: publishing is the release job's business.
-        # Left to its default, electron-builder tries to publish on a tag and
-        # fails against the placeholder owner in electron-builder.yml.
+        # `--publish never` on purpose: publishing is the release step's
+        # business. Left to its default, electron-builder tries to publish on a
+        # tag and fails against the placeholder owner in electron-builder.yml.
         run: npm run build && npx electron-builder --win --publish never
 
-      - name: Upload installers
-        uses: actions/upload-artifact@v4
+      - name: Upload installers as build artifacts
+        uses: actions/upload-artifact@v7
         with:
           name: trove-windows
           path: |
@@ -58,21 +67,10 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # Tags publish a release; ordinary pushes only produce artifacts.
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v5
-        with:
-          name: trove-windows
-          path: release
-
+      # Only a v* tag publishes. Ordinary pushes stop at the artifact above.
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             release/*.exe
@@ -80,6 +78,14 @@ jobs:
           draft: false
           generate_release_notes: true
           body: |
+            ### Install
+
+            - `Trove-Setup-*.exe` — installer
+            - `Trove-Portable-*.exe` — single file, no install
+
             Windows builds are **unsigned**. SmartScreen will warn on first run:
-            choose **More info → Run anyway**. A code-signing certificate costs
-            a few hundred dollars a year and this is a portfolio project.
+            choose **More info → Run anyway**. A code-signing certificate costs a
+            few hundred dollars a year and this is a portfolio project.
+
+            First launch downloads a ~22MB language model once. After that it
+            never touches the network.

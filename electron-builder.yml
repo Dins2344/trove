@@ -59,10 +59,11 @@ nsis:
 portable:
   artifactName: ${productName}-Portable-${version}-${arch}.${ext}
 
-# Auto-update source. Populate owner/repo before the first release; the app
-# tolerates this being unconfigured and simply never finds an update.
+# Auto-update source. This is only read by the shipped app when it checks for
+# updates; CI publishes with `--publish never` and the release step attaches the
+# artifacts itself.
 publish:
   provider: github
-  owner: REPLACE_WITH_GITHUB_USER
+  owner: Dins2344
   repo: trove
   releaseType: release
