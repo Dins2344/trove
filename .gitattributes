@@ -1,0 +1,6 @@
+# Normalise line endings so CI (Linux) and local dev (Windows) agree.
+* text=auto eol=lf
+
+# Generated icons are binary; never let Git touch their bytes.
+*.png binary
+*.ico binary

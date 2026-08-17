@@ -1,0 +1,68 @@
+appId: com.dinsondavis.trove
+productName: Trove
+copyright: Copyright © 2026 Dinson Davis
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - out/**/*
+  - package.json
+  # Source maps and docs bloat the installer without helping a user.
+  - '!**/*.{map,md,markdown,ts,tsx,flow}'
+  - '!**/{test,tests,__tests__,spec,docs,example,examples,.github}/**'
+  - '!**/{.eslintrc,.editorconfig,.prettierrc,tsconfig.json,.npmignore}'
+
+  # onnxruntime-node ships ~210MB of prebuilt binaries covering five platforms.
+  # A Windows x64 installer needs exactly one of them; the rest are dead weight.
+  # NOTE: building for win32/arm64 means adjusting these exclusions.
+  - '!**/node_modules/onnxruntime-node/bin/napi-v6/darwin/**'
+  - '!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**'
+  - '!**/node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**'
+
+# Native .node binaries cannot be loaded from inside an asar archive -- the OS
+# loader needs a real path on disk. Everything else stays packed.
+asarUnpack:
+  - '**/node_modules/onnxruntime-node/bin/**'
+
+extraResources:
+  - from: resources
+    to: .
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: resources/icons/icon.ico
+
+# Each target needs its own artifact name. A shared `win.artifactName` makes
+# both write the same file, so the portable build silently overwrites the
+# installer -- and latest.yml is left describing an artifact that is no longer
+# the one on disk, which breaks auto-update.
+nsis:
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+  # A one-click installer that picks its own location is hostile for something
+  # this large.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Trove
+  # The uninstaller must not take the user's index and settings with it without
+  # asking; userData is deliberately left in place.
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: ${productName}-Portable-${version}-${arch}.${ext}
+
+# Auto-update source. Populate owner/repo before the first release; the app
+# tolerates this being unconfigured and simply never finds an update.
+publish:
+  provider: github
+  owner: REPLACE_WITH_GITHUB_USER
+  repo: trove
+  releaseType: release

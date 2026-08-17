@@ -1,0 +1,85 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Fast feedback: types and unit tests run on Linux regardless of what we ship.
+  # Nothing here needs a compiler -- storage is node:sqlite and the ONNX runtime
+  # ships prebuilt, so this is a plain `npm ci`.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+  build:
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build installers
+        run: npm run dist
+        env:
+          # Lets electron-builder attach artifacts when the ref is a tag.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: trove-windows
+          path: |
+            release/*.exe
+            release/latest.yml
+          if-no-files-found: error
+          retention-days: 14
+
+  # Tags publish a release; ordinary pushes only produce artifacts.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: trove-windows
+          path: release
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/latest.yml
+          draft: false
+          generate_release_notes: true
+          body: |
+            Windows builds are **unsigned**. SmartScreen will warn on first run:
+            choose **More info → Run anyway**. A code-signing certificate costs
+            a few hundred dollars a year and this is a portfolio project.
